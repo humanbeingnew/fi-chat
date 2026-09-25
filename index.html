@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EASY SECOND CHAT V2 - Netlify</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0f1218;color:#eef2f7;font-family:Arial,sans-serif}
+.wrap{max-width:1050px;margin:24px auto;padding:14px}.card{background:#181d26;border:1px solid #303847;border-radius:18px;overflow:hidden;box-shadow:0 12px 40px #0006}
+header{padding:20px;border-bottom:1px solid #303847}h1{margin:0 0 5px}.sub{color:#9da8b8}.screen{padding:28px;max-width:760px;margin:auto}
+.homeButtons{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px}.homeButton{padding:24px 16px;font-size:18px;background:#202a3b;border:1px solid #3a4658;color:#fff}.homeButton span{display:block;font-size:32px;margin-bottom:10px}
+.formBox{display:grid;gap:10px;margin-top:18px}input,button{font:inherit;border-radius:10px;padding:12px;border:1px solid #3a4658}input{background:#0d1015;color:#fff}button{background:#4d7cff;color:#fff;border:0;cursor:pointer}.secondary{background:#303949}.danger{background:#8d3c4a}
+.back{margin-top:12px}.status{min-height:22px;color:#ffca79;margin-top:8px}.roomSearch{margin-top:20px;padding-top:16px;border-top:1px solid #303847}.roomSearchRow{display:flex;gap:8px}.roomSearchRow input{flex:1}
+.roomList{margin-top:8px;display:grid;gap:6px;max-height:220px;overflow:auto}.roomItem{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;background:#202735;border-radius:9px;color:#dbe3ee}.roomItem button{padding:7px 10px;background:#35445f}.empty{color:#8793a6}
+.modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:20px;z-index:20}.modalBox{width:min(420px,100%);background:#181d26;border:1px solid #3a4658;border-radius:16px;padding:22px;box-shadow:0 20px 60px #0008}.modalBox h2{margin:0 0 8px}.modalActions{display:flex;gap:8px;margin-top:12px}.modalActions button{flex:1}
+#chat{display:none;grid-template-columns:220px 1fr;min-height:590px}aside{padding:18px;background:#131821;border-right:1px solid #303847}#members{line-height:1.9;color:#cbd3df}
+.roomtag{margin:10px 0;padding:8px;border-radius:8px;background:#202735;color:#aeb9c9}main{display:flex;flex-direction:column;min-width:0}#messages{flex:1;overflow:auto;padding:18px;max-height:500px}.msg{padding:10px 12px;margin:8px 0;background:#222a38;border-radius:12px;overflow-wrap:anywhere}.msg b{color:#91b1ff}.msg small{color:#8793a6;margin-left:8px}.system{opacity:.7}.form{display:flex;gap:8px;padding:14px;border-top:1px solid #303847}.form input{flex:1;min-width:0}
+@media(max-width:680px){.homeButtons{grid-template-columns:1fr}#chat{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid #303847}}
+</style>
+</head>
+<body><div class="wrap"><div class="card">
+<header><h1>EASY SECOND CHAT V2 💬</h1><div class="sub">Netlify 버전: 방을 만든 뒤 친구들과 비밀번호로 입장할 수 있습니다.</div></header>
+
+<section id="home" class="screen">
+<h2>무엇을 할까요?</h2><div class="sub">처음 사용하는 경우에는 방을 만들고, 이미 방이 있다면 입장하세요.</div>
+<div class="homeButtons"><button class="homeButton" onclick="showScreen('create')"><span>➕</span>방 만들기</button><button class="homeButton" onclick="showScreen('join')"><span>🚪</span>방 들어가기</button></div>
+<div id="homeStatus" class="status"></div><button type="button" class="secondary" onclick="health()">서버 상태 확인</button>
+</section>
+
+<section id="create" class="screen" style="display:none">
+<h2>방 만들기</h2><div class="sub">새 방의 이름과 비밀번호를 설정하세요. 새 비밀번호는 12자 이상이어야 합니다.</div>
+<div class="formBox"><input id="createRoom" maxlength="40" placeholder="방 이름"><input id="createPassword" type="password" maxlength="128" placeholder="방 비밀번호 (12자 이상)">
+<button onclick="createRoom()">방 만들기</button><div id="createStatus" class="status"></div><button type="button" class="secondary back" onclick="showScreen('home')">← 처음으로</button></div>
+</section>
+
+<section id="join" class="screen" style="display:none">
+<h2>방 들어가기</h2><div class="sub">닉네임과 이미 만들어진 방 이름을 입력하세요. 비밀번호는 다음 단계에서 확인합니다.</div>
+<div class="formBox"><input id="name" maxlength="24" placeholder="닉네임" oninput="checkProtectedName()">
+<div id="adminBox" style="display:none"><input id="adminPassword" type="password" maxlength="128" placeholder="보호 닉네임 비밀번호"><div class="sub">이 닉네임은 관리자 전용입니다.</div></div>
+<input id="room" maxlength="40" placeholder="방 이름 / 방 코드"><button onclick="prepareJoin()">방 입장</button><div id="joinStatus" class="status"></div></div>
+<div class="roomSearch"><b>🔎 방 목록 검색</b><div class="sub">방 이름만 검색됩니다. 비밀번호는 공개되지 않습니다.</div>
+<div class="roomSearchRow"><input id="roomSearchInput" maxlength="40" placeholder="찾을 방 이름" onkeydown="if(event.key==='Enter')searchRooms()"><button type="button" onclick="searchRooms()">검색</button></div><div id="roomList" class="roomList"></div></div>
+<button type="button" class="secondary back" onclick="showScreen('home')">← 처음으로</button>
+</section>
+
+<section id="chat"><aside><h3>참여자</h3><div id="roomtag" class="roomtag"></div><div id="members"></div><br><button class="danger" onclick="leave()">나가기</button></aside>
+<main><div id="messages"></div><div class="form"><input id="text" maxlength="500" placeholder="메시지를 입력하세요" onkeydown="if(event.key==='Enter')send()"><button onclick="send()">전송</button></div></main></section>
+</div></div>
+
+<div id="passwordModal" class="modal" role="dialog" aria-modal="true">
+<div class="modalBox"><h2>방 비밀번호</h2><div class="sub">선택한 방의 비밀번호를 입력하세요.</div><div class="formBox">
+<input id="roomPassword" type="password" maxlength="128" placeholder="방 비밀번호" onkeydown="if(event.key==='Enter')confirmJoinPassword()">
+<div id="passwordStatus" class="status"></div><div class="modalActions"><button type="button" class="secondary" onclick="closePasswordModal()">취소</button><button type="button" onclick="confirmJoinPassword()">확인</button></div>
+</div></div></div>
+
+<script>
+const API="/api";
+let me="",room="",roomToken="",adminToken="",pollTimer=null,pendingCreatedPassword="",lastMessageCount=-1,manualLeave=false;
+const $=id=>document.getElementById(id);
+const protectedNames=["admin","administrator","관리자","운영자","운영","owner","root","system","moderator","mod"];
+function isProtectedName(n){return protectedNames.includes(String(n).trim().toLowerCase())}
+function status(t){$("homeStatus").textContent=t} function setJoinStatus(t){$("joinStatus").textContent=t} function setCreateStatus(t){$("createStatus").textContent=t}
+function showScreen(n){["home","create","join"].forEach(id=>$(id).style.display=id===n?"block":"none");if(n!=="join")closePasswordModal();if(n==="create")setCreateStatus("");if(n==="join")setJoinStatus("")}
+async function api(path,opts={}){const r=await fetch(API+path,{cache:"no-store",...opts});let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||"요청 실패");return d}
+async function health(){try{const d=await api("/health");status("서버 정상: "+JSON.stringify(d))}catch(e){status("서버 상태 확인 실패: "+e.message)}}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>c==="&"?"&amp;":c==="<"?"&lt;":c===">"?"&gt;":c==='"'?"&quot;":"&#39;")}
+function addMsg(m){const box=$("messages"),el=document.createElement("div");el.className="msg"+(m.system?" system":"");el.innerHTML=m.system?"<small>"+esc(m.time)+"</small> "+esc(m.text):"<b>"+esc(m.name)+"</b><small>"+esc(m.time)+"</small><br>"+esc(m.text);box.appendChild(el);box.scrollTop=box.scrollHeight}
+function renderMembers(list){$("members").innerHTML=(list||[]).map(x=>"<div>• "+esc(x)+"</div>").join("")}
+function checkProtectedName(){$("adminBox").style.display=isProtectedName($("name").value)?"block":"none"}
+
+async function createRoom(){
+ const roomName=$("createRoom").value.trim(),password=$("createPassword").value;
+ if(!roomName||!password)return setCreateStatus("방 이름과 비밀번호를 입력하세요.");
+ if(password.length<12)return setCreateStatus("새 방 비밀번호는 최소 12자 이상이어야 합니다.");
+ setCreateStatus("방을 만드는 중...");
+ try{await api("/room-create",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({room:roomName,password})});
+ pendingCreatedPassword=password;$("room").value=roomName;$("createPassword").value="";$("name").value="";showScreen("join");setJoinStatus("방이 만들어졌습니다. 닉네임을 입력하고 입장하세요.");$("name").focus()
+ }catch(e){setCreateStatus("방 만들기 실패: "+e.message)}
+}
+function openPasswordModal(){$("roomPassword").value=pendingCreatedPassword||"";$("passwordStatus").textContent=pendingCreatedPassword?"방을 만든 직후라 비밀번호가 자동으로 준비되었습니다.":"";$("passwordModal").style.display="flex";if(!pendingCreatedPassword)$("roomPassword").focus()}
+function closePasswordModal(){$("passwordModal").style.display="none";$("passwordStatus").textContent=""}
+async function prepareJoin(){
+ me=$("name").value.trim();room=$("room").value.trim();
+ if(!me||!room)return setJoinStatus("닉네임과 방 이름을 입력하세요.");
+ if(isProtectedName(me)&&!$("adminPassword").value)return setJoinStatus("이 닉네임은 관리자 비밀번호가 필요합니다.");
+ setJoinStatus("방 정보를 확인하는 중...");
+ try{const d=await api("/room-exists?room="+encodeURIComponent(room));if(!d.exists)throw new Error("존재하지 않는 방입니다.");openPasswordModal()}catch(e){setJoinStatus("방 입장 실패: "+e.message)}
+}
+async function confirmJoinPassword(){
+ const password=$("roomPassword").value;if(!password)return $("passwordStatus").textContent="방 비밀번호를 입력하세요.";
+ $("passwordStatus").textContent="비밀번호 확인 중...";
+ try{
+  const d=await api("/room-login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({room,password})});
+  roomToken=d.token;pendingCreatedPassword="";closePasswordModal();
+  if(isProtectedName(me))adminToken=(await api("/admin-login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:$("adminPassword").value})})).token;
+  manualLeave=false;lastMessageCount=-1;$("home").style.display=$("create").style.display=$("join").style.display="none";$("chat").style.display="grid";$("roomtag").textContent="방: "+room;setJoinStatus("");poll();clearInterval(pollTimer);pollTimer=setInterval(poll,1000)
+ }catch(e){$("passwordStatus").textContent="입장 실패: "+e.message}
+}
+async function poll(){
+ if(!room||!roomToken||manualLeave)return;
+ try{const d=await api("/state?room="+encodeURIComponent(room)+"&name="+encodeURIComponent(me)+"&roomToken="+encodeURIComponent(roomToken)+"&adminToken="+encodeURIComponent(adminToken));
+  renderMembers(d.members||[]);
+  if(lastMessageCount!==d.messages.length){$("messages").innerHTML="";d.messages.forEach(addMsg);lastMessageCount=d.messages.length}
+ }catch(e){if(!manualLeave){setJoinStatus("연결 확인 중...");if(/인증|만료|방/.test(e.message))leave(false)}}
+}
+async function send(){
+ const input=$("text"),text=input.value.trim();if(!text)return;
+ try{await api("/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({room,name:me,roomToken,adminToken,text})});input.value="";await poll()}catch(e){alert(e.message)}
+}
+async function searchRooms(){
+ const q=$("roomSearchInput").value.trim(),box=$("roomList");box.innerHTML='<div class="empty">방 목록을 검색하는 중...</div>';
+ try{const d=await api("/rooms?q="+encodeURIComponent(q));if(!d.rooms?.length)return box.innerHTML='<div class="empty">검색 결과가 없습니다.</div>';
+ box.innerHTML=d.rooms.map(x=>'<div class="roomItem"><span>🔒 '+esc(x.name)+' <small>초기화: '+esc(new Date(x.expiresAt).toLocaleString("ko-KR"))+'</small></span><button type="button" onclick="selectRoom('+JSON.stringify(x.name)+')">선택</button></div>').join("")
+ }catch(e){box.innerHTML='<div class="empty">검색 실패: '+esc(e.message)+'</div>'}
+}
+function selectRoom(n){$("room").value=n;$("room").focus()}
+async function leave(reload=true){
+ manualLeave=true;clearInterval(pollTimer);pollTimer=null;
+ if(room&&me&&roomToken)try{await api("/leave",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({room,name:me,roomToken})})}catch{}
+ roomToken="";adminToken="";room="";me="";lastMessageCount=-1;
+ if(reload)location.reload();
+}
+window.addEventListener("beforeunload",()=>{if(!manualLeave&&roomToken&&navigator.sendBeacon){navigator.sendBeacon(API+"/leave",new Blob([JSON.stringify({room,name:me,roomToken})],{type:"application/json"}))}});
+</script>
+</body></html>

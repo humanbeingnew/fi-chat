@@ -1,0 +1,13 @@
+[build]
+  publish = "."
+
+[build.environment]
+  NODE_VERSION = "22.12.0"
+
+[functions]
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api"
+  status = 200
